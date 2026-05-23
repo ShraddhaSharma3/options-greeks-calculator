@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Black-Scholes Options Greeks Calculator</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', sans-serif; background: #0f1117; color: #e0e0e0; min-height: 100vh; padding: 2rem 1rem; }
+  h1 { text-align: center; font-size: 1.6rem; font-weight: 600; color: #00d4aa; margin-bottom: 0.3rem; letter-spacing: 1px; }
+  .subtitle { text-align: center; color: #888; font-size: 0.85rem; margin-bottom: 2rem; }
+  .container { max-width: 860px; margin: 0 auto; }
+
+  .card { background: #1a1d27; border: 1px solid #2a2d3a; border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; }
+  .card h2 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 2px; color: #00d4aa; margin-bottom: 1.2rem; }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
+
+  .input-group { display: flex; flex-direction: column; gap: 6px; }
+  .input-group label { font-size: 0.75rem; color: #888; text-transform: uppercase; letter-spacing: 1px; }
+  .input-group input {
+    background: #0f1117; border: 1px solid #2a2d3a; border-radius: 8px;
+    color: #e0e0e0; font-size: 1rem; padding: 0.6rem 0.8rem; outline: none;
+    transition: border-color 0.2s;
+  }
+  .input-group input:focus { border-color: #00d4aa; }
+
+  .vol-toggle { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; }
+  .vol-btn {
+    flex: 1; padding: 0.5rem; border-radius: 8px; border: 1px solid #2a2d3a;
+    background: #0f1117; color: #888; font-size: 0.8rem; cursor: pointer;
+    transition: all 0.2s; font-weight: 500;
+  }
+  .vol-btn.active { background: #00d4aa22; border-color: #00d4aa; color: #00d4aa; }
+  .vol-btn:hover:not(.active) { border-color: #444; color: #ccc; }
+
+  .result-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; }
+  .result-card {
+    background: #0f1117; border: 1px solid #2a2d3a; border-radius: 10px;
+    padding: 1rem 1.2rem; display: flex; flex-direction: column; gap: 4px;
+  }
+  .result-card .label { font-size: 0.72rem; color: #666; text-transform: uppercase; letter-spacing: 1px; }
+  .result-card .value { font-size: 1.5rem; font-weight: 600; }
+  .result-card .desc { font-size: 0.72rem; color: #555; }
+
+  .call { color: #00d4aa; }
+  .put  { color: #ff6b6b; }
+  .delta-c { color: #4fc3f7; }
+  .gamma-c  { color: #ffd54f; }
+  .theta-c  { color: #ff8a65; }
+  .vega-c   { color: #ce93d8; }
+
+  .divider { height: 1px; background: #2a2d3a; margin: 1rem 0; }
+
+  .greek-explain { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.8rem; margin-top: 1rem; }
+  .greek-pill {
+    background: #0f1117; border: 1px solid #2a2d3a; border-radius: 8px;
+    padding: 0.7rem 1rem; font-size: 0.8rem;
+  }
+  .greek-pill strong { display: block; margin-bottom: 2px; }
+
+  .badge {
+    display: inline-block; padding: 2px 10px; border-radius: 20px;
+    font-size: 0.7rem; font-weight: 600; letter-spacing: 1px;
+    background: #00d4aa22; color: #00d4aa; border: 1px solid #00d4aa44;
+    margin-bottom: 1rem;
+  }
+
+  footer { text-align: center; color: #333; font-size: 0.75rem; margin-top: 2rem; }
+
+  @media (max-width: 600px) {
+    .grid-2, .grid-4, .result-grid, .greek-explain { grid-template-columns: 1fr 1fr; }
+    .grid-4 { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <h1>⚡ Options Greeks Calculator</h1>
+  <p class="subtitle">Black-Scholes model &nbsp;·&nbsp; Real-time computation &nbsp;·&nbsp; NSE Indian Equities</p>
+
+  <div class="card">
+    <h2>Input Parameters</h2>
+    <div class="grid-2" style="margin-bottom:1rem;">
+      <div class="input-group">
+        <label>Stock Price (S) ₹</label>
+        <input type="number" id="S" value="1642.30" step="0.01" oninput="calculate()">
+      </div>
+      <div class="input-group">
+        <label>Strike Price (K) ₹</label>
+        <input type="number" id="K" value="1600.00" step="0.01" oninput="calculate()">
+      </div>
+      <div class="input-group">
+        <label>Risk-Free Rate (r)</label>
+        <input type="number" id="r" value="0.065" step="0.001" oninput="calculate()">
+      </div>
+      <div class="input-group">
+        <label>Days to Expiry (T)</label>
+        <input type="number" id="T" value="30" step="1" oninput="calculate()">
+      </div>
+    </div>
+
+    <h2>Volatility Scenario</h2>
+    <div class="vol-toggle">
+      <button class="vol-btn" onclick="setVol(0.15, this)">📉 Low &nbsp; 15%</button>
+      <button class="vol-btn active" onclick="setVol(0.22, this)">📊 Base &nbsp; 22%</button>
+      <button class="vol-btn" onclick="setVol(0.35, this)">📈 High &nbsp; 35%</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Results</h2>
+    <div class="result-grid">
+      <div class="result-card">
+        <span class="label">Call Option Price</span>
+        <span class="value call" id="callPrice">—</span>
+        <span class="desc">Right to BUY at strike</span>
+      </div>
+      <div class="result-card">
+        <span class="label">Put Option Price</span>
+        <span class="value put" id="putPrice">—</span>
+        <span class="desc">Right to SELL at strike</span>
+      </div>
+      <div class="result-card">
+        <span class="label">Delta (Call / Put)</span>
+        <span class="value delta-c" id="delta">—</span>
+        <span class="desc">Price sensitivity to ₹1 move</span>
+      </div>
+      <div class="result-card">
+        <span class="label">Gamma</span>
+        <span class="value gamma-c" id="gamma">—</span>
+        <span class="desc">Rate of change of Delta</span>
+      </div>
+      <div class="result-card">
+        <span class="label">Theta (per day)</span>
+        <span class="value theta-c" id="theta">—</span>
+        <span class="desc">Time decay per day</span>
+      </div>
+      <div class="result-card">
+        <span class="label">Vega (per 1% vol)</span>
+        <span class="value vega-c" id="vega">—</span>
+        <span class="desc">Sensitivity to volatility</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>What Are the Greeks?</h2>
+    <div class="greek-explain">
+      <div class="greek-pill">
+        <strong style="color:#4fc3f7">Delta</strong>
+        If the stock moves ₹1, the option price moves by Delta. Call Delta is always positive (0 to 1), Put Delta negative (-1 to 0).
+      </div>
+      <div class="greek-pill">
+        <strong style="color:#ffd54f">Gamma</strong>
+        How fast Delta itself changes. High Gamma means your Delta changes rapidly — useful near expiry or at-the-money options.
+      </div>
+      <div class="greek-pill">
+        <strong style="color:#ff8a65">Theta</strong>
+        Every day that passes, the option loses Theta in value. Options lose value as time runs out — this is "time decay."
+      </div>
+      <div class="greek-pill">
+        <strong style="color:#ce93d8">Vega</strong>
+        For every 1% rise in implied volatility, the option price increases by Vega. Higher volatility = more expensive options.
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Try These NSE Stocks</h2>
+    <div class="grid-2">
+      <button class="vol-btn" style="text-align:left; padding:0.8rem 1rem;" onclick="loadPreset(1642.30, 1600, 0.065, 30)">
+        <strong style="color:#e0e0e0">HDFC Bank</strong><br>
+        <span style="color:#666; font-size:0.75rem">S: ₹1642 &nbsp; K: ₹1600 &nbsp; 30 days</span>
+      </button>
+      <button class="vol-btn" style="text-align:left; padding:0.8rem 1rem;" onclick="loadPreset(1280, 1250, 0.065, 30)">
+        <strong style="color:#e0e0e0">ICICI Bank</strong><br>
+        <span style="color:#666; font-size:0.75rem">S: ₹1280 &nbsp; K: ₹1250 &nbsp; 30 days</span>
+      </button>
+      <button class="vol-btn" style="text-align:left; padding:0.8rem 1rem;" onclick="loadPreset(820, 800, 0.065, 30)">
+        <strong style="color:#e0e0e0">SBI</strong><br>
+        <span style="color:#666; font-size:0.75rem">S: ₹820 &nbsp; K: ₹800 &nbsp; 30 days</span>
+      </button>
+      <button class="vol-btn" style="text-align:left; padding:0.8rem 1rem;" onclick="loadPreset(1890, 1850, 0.065, 45)">
+        <strong style="color:#e0e0e0">Infosys</strong><br>
+        <span style="color:#666; font-size:0.75rem">S: ₹1890 &nbsp; K: ₹1850 &nbsp; 45 days</span>
+      </button>
+    </div>
+  </div>
+
+  <footer>Built with Black-Scholes model &nbsp;·&nbsp; By Shraddha Sharma &nbsp;·&nbsp; github.com/ShraddhaSharma3</footer>
+</div>
+
+<script>
+  let sigma = 0.22;
+
+  function normalCDF(x) {
+    const a1=0.254829592, a2=-0.284496736, a3=1.421413741, a4=-1.453152027, a5=1.061405429, p=0.3275911;
+    const sign = x < 0 ? -1 : 1;
+    x = Math.abs(x) / Math.sqrt(2);
+    const t = 1.0 / (1.0 + p * x);
+    const y = 1.0 - (((((a5*t + a4)*t) + a3)*t + a2)*t + a1)*t*Math.exp(-x*x);
+    return 0.5 * (1.0 + sign * y);
+  }
+
+  function normalPDF(x) {
+    return Math.exp(-0.5 * x * x) / Math.sqrt(2 * Math.PI);
+  }
+
+  function calculate() {
+    const S = parseFloat(document.getElementById('S').value);
+    const K = parseFloat(document.getElementById('K').value);
+    const r = parseFloat(document.getElementById('r').value);
+    const T = parseFloat(document.getElementById('T').value) / 365;
+
+    if (!S || !K || !r || !T || S <= 0 || K <= 0 || T <= 0) return;
+
+    const d1 = (Math.log(S / K) + (r + 0.5 * sigma * sigma) * T) / (sigma * Math.sqrt(T));
+    const d2 = d1 - sigma * Math.sqrt(T);
+
+    const call = S * normalCDF(d1) - K * Math.exp(-r * T) * normalCDF(d2);
+    const put  = K * Math.exp(-r * T) * normalCDF(-d2) - S * normalCDF(-d1);
+
+    const deltaC = normalCDF(d1);
+    const deltaP = normalCDF(d1) - 1;
+    const gam    = normalPDF(d1) / (S * sigma * Math.sqrt(T));
+    const thetaC = (-(S * normalPDF(d1) * sigma) / (2 * Math.sqrt(T)) - r * K * Math.exp(-r * T) * normalCDF(d2)) / 365;
+    const vegaV  = S * normalPDF(d1) * Math.sqrt(T) / 100;
+
+    document.getElementById('callPrice').textContent = '₹' + call.toFixed(2);
+    document.getElementById('putPrice').textContent  = '₹' + put.toFixed(2);
+    document.getElementById('delta').textContent     = deltaC.toFixed(4) + ' / ' + deltaP.toFixed(4);
+    document.getElementById('gamma').textContent     = gam.toFixed(6);
+    document.getElementById('theta').textContent     = thetaC.toFixed(4);
+    document.getElementById('vega').textContent      = vegaV.toFixed(4);
+  }
+
+  function setVol(v, btn) {
+    sigma = v;
+    document.querySelectorAll('.vol-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    calculate();
+  }
+
+  function loadPreset(s, k, r, t) {
+    document.getElementById('S').value = s;
+    document.getElementById('K').value = k;
+    document.getElementById('r').value = r;
+    document.getElementById('T').value = t;
+    calculate();
+  }
+
+  calculate();
+</script>
+</body>
+</html>
